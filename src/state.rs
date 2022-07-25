@@ -52,10 +52,23 @@ impl State {
             width: size.width,
             height: size.height,
             // PresentMode: V-Sync, TripleBuffering, direto...
-            present_mode: wgpu::PresentMode::Mailbox,
+            present_mode: surface.get_supported_modes(&adapter)
+            .iter()
+            .find(|p| **p == wgpu::PresentMode::Mailbox)
+            .unwrap_or(&wgpu::PresentMode::Fifo)
+            .to_owned(),
         };
 
-        todo!()
+        // Configura nosso surface com nossas opções
+        surface.configure(&device, &config);
+
+        Self {
+          device,
+          queue,
+          size,
+          surface,
+          surface_config: config
+        }        
     }
 
     fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
