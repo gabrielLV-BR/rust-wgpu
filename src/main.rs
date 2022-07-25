@@ -2,5 +2,5 @@ mod window;
 mod state;
 
 fn main() {
-    crate::window::run();
+  pollster::block_on(crate::window::run());
 }

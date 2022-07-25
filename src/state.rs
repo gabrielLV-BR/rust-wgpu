@@ -1,16 +1,16 @@
 use wgpu::{Device, RequestAdapterOptions, TextureUsages};
 use winit::event::WindowEvent;
 
-struct State {
+pub struct WGPUState {
     surface: wgpu::Surface,
     surface_config: wgpu::SurfaceConfiguration,
     device: wgpu::Device,
     queue: wgpu::Queue,
-    size: winit::dpi::PhysicalSize<u32>,
+    pub size: winit::dpi::PhysicalSize<u32>,
 }
 
-impl State {
-    async fn new(window: &winit::window::Window) -> Self {
+impl WGPUState {
+    pub async fn new(window: &winit::window::Window) -> Self {
         let size = window.inner_size();
 
         // Instance é um handle pra GPU
@@ -71,19 +71,62 @@ impl State {
         }        
     }
 
-    fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
-        todo!()
+    pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
+      if new_size.width > 0 && new_size.height > 0 {
+        self.size = new_size;
+        self.surface_config.width = new_size.width;
+        self.surface_config.height = new_size.height;
+        self.surface.configure(&self.device, &self.surface_config);
+      } 
     }
 
-    fn input(&mut self, event: &WindowEvent) {
-        todo!()
+    pub fn input(&mut self, event: &WindowEvent) -> bool {
+      false
     }
 
-    fn update(&mut self) {
-        todo!()
+    pub fn update(&mut self) {
     }
 
-    fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
-        todo!()
+    pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+      // Pega texture no Surface para desenhar
+      let output = self.surface.get_current_texture()?;
+
+      let view = output.texture.create_view(
+        &wgpu::TextureViewDescriptor::default()
+      );
+
+      // CommandEncoder: tipo o CommandPool do Vulkan
+      let mut encoder = self.device.create_command_encoder(
+        &wgpu::CommandEncoderDescriptor::default()
+      );
+
+      {
+        // Só uma referência, o RenderPass já está salvo no encoder
+        let _render_pass = encoder.begin_render_pass(
+          &wgpu::RenderPassDescriptor {
+            label: Some("Screen Clearing"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+              view: &view,
+              resolve_target: None,
+              ops: wgpu::Operations {
+                load: wgpu::LoadOp::Clear(wgpu::Color {
+                  r: 0.2,
+                  g: 0.5,
+                  b: 0.8,
+                  a: 1.0
+                }),
+                store: false
+              },
+            })],
+            depth_stencil_attachment: None
+          }
+        );
+      }
+
+      self.queue.submit(std::iter::once(encoder.finish()));
+      // Apresenta na tela
+      output.present();
+
+      Ok(())
     }
 }
