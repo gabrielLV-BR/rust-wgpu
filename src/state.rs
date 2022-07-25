@@ -1,4 +1,4 @@
-use wgpu::{Device, RequestAdapterOptions, TextureUsages};
+use wgpu::{RequestAdapterOptions, TextureUsages};
 use winit::event::WindowEvent;
 
 pub struct WGPUState {
@@ -14,18 +14,20 @@ impl WGPUState {
         let size = window.inner_size();
 
         // Instance é um handle pra GPU
-        let instance = wgpu::Instance::new(wgpu::Backends::VULKAN);
+        let instance = wgpu::Instance::new(wgpu::Backends::all());
         // Surface é onde iremos desenhar na janela
         let surface = unsafe { instance.create_surface(&window) };
+
+        println!("Surface: {:?}", surface);
         // Adapter é uma referência lógica à GPU, nos permite definir algumas preferências
         let adapter = instance
             .request_adapter(&RequestAdapterOptions {
                 compatible_surface: Some(&surface),
                 force_fallback_adapter: true,
-                power_preference: wgpu::PowerPreference::HighPerformance,
+                power_preference: wgpu::PowerPreference::LowPower,
             })
             .await
-            .expect("Erro ao requerir adaptador: requerimentos não foram satisfeitos!");
+            .expect("Erro ao criar ADAPTER!");
 
         let (device, queue) = adapter
             .request_device(
@@ -40,7 +42,7 @@ impl WGPUState {
                 None,
             )
             .await
-            .expect("Erro ao criar Device e Queue");
+            .expect("Erro ao criar DEVICE/QUEUE!");
 
         // Define opções de como o wgpu deve criar o Surface
         let config = wgpu::SurfaceConfiguration {
@@ -80,7 +82,7 @@ impl WGPUState {
       } 
     }
 
-    pub fn input(&mut self, event: &WindowEvent) -> bool {
+    pub fn input(&mut self, _event: &WindowEvent) -> bool {
       false
     }
 
@@ -97,7 +99,7 @@ impl WGPUState {
 
       // CommandEncoder: tipo o CommandPool do Vulkan
       let mut encoder = self.device.create_command_encoder(
-        &wgpu::CommandEncoderDescriptor::default()
+        &wgpu::CommandEncoderDescriptor { label: Some("Command Encoder") }
       );
 
       {
@@ -115,7 +117,7 @@ impl WGPUState {
                   b: 0.8,
                   a: 1.0
                 }),
-                store: false
+                store: true
               },
             })],
             depth_stencil_attachment: None

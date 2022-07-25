@@ -1,4 +1,4 @@
-use winit::{event_loop::{EventLoop, ControlFlow}, window::{Window, WindowBuilder, WindowAttributes}, dpi::{LogicalSize, Position}, event::{Event, WindowEvent}};
+use winit::{event_loop::{EventLoop, ControlFlow}, window::WindowBuilder, dpi::LogicalSize, event::{Event, WindowEvent}};
 
 use crate::state::WGPUState;
 
@@ -45,6 +45,9 @@ pub async fn run() {
                 },
                 Err(e) => eprint!("{:?}", e)
             }
+          },
+          Event::MainEventsCleared => {
+            window.request_redraw();
           }
           _ => {}
         }
