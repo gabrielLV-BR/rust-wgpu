@@ -23,11 +23,10 @@ impl WGPUState {
         let adapter = instance
             .request_adapter(&RequestAdapterOptions {
                 compatible_surface: Some(&surface),
-                force_fallback_adapter: true,
-                power_preference: wgpu::PowerPreference::LowPower,
-            })
-            .await
-            .expect("Erro ao criar ADAPTER!");
+                force_fallback_adapter: false,
+                power_preference: wgpu::PowerPreference::HighPerformance,
+            }).await.expect("Erro ao criar ADAPTER!");
+
 
         let (device, queue) = adapter
             .request_device(
