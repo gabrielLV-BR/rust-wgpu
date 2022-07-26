@@ -1,4 +1,4 @@
-use wgpu::{RequestAdapterOptions, TextureUsages};
+use wgpu::{RequestAdapterOptions, TextureUsages, BlendState, PrimitiveState};
 use winit::event::WindowEvent;
 
 pub struct WGPUState {
@@ -7,6 +7,8 @@ pub struct WGPUState {
     device: wgpu::Device,
     queue: wgpu::Queue,
     pub size: winit::dpi::PhysicalSize<u32>,
+
+    render_pipeline: wgpu::RenderPipeline
 }
 
 impl WGPUState {
@@ -63,12 +65,78 @@ impl WGPUState {
         // Configura nosso surface com nossas opções
         surface.configure(&device, &config);
 
+        // Poderia ser resumido em
+        // let shader = include_wgsl!("resources/shaders/basic.wgsl");
+        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+          label: Some("Basic shader"),
+          source: wgpu::ShaderSource::Wgsl(include_str!("resources/shaders/basic.wgsl").into())
+        });
+
+        let render_pipeline_layout = device.create_pipeline_layout(
+          &wgpu::PipelineLayoutDescriptor {
+            label: Some("Pipeline Layout"),
+            bind_group_layouts: &[],
+            push_constant_ranges: &[]
+          }
+        );
+
+        let render_pipeline = device.create_render_pipeline(
+          &wgpu::RenderPipelineDescriptor {
+            label: Some("Basic render pipeline"),
+            primitive: PrimitiveState {
+              //  Topologia
+              topology: wgpu::PrimitiveTopology::TriangleList,
+              //  Só util quando topologia é Strip com índices
+              strip_index_format: None,
+              // Frente -> vértices em Counter ClockWise
+              front_face: wgpu::FrontFace::Ccw,
+              // Esconder os de trás
+              cull_mode: Some(wgpu::Face::Back),
+              // Preencher o triângulo
+              polygon_mode: wgpu::PolygonMode::Fill,
+              // Não realiza o clipping, possível extra-processando 
+              // de fragmentos que serão descartados
+              unclipped_depth: false,
+              // Se true, a rasterização é mais conservadora
+              conservative: false
+            },
+            // O efeito que o passe vai ter no buffer de depth/stencil
+            depth_stencil: None,
+            multisample: wgpu::MultisampleState {
+              // Quantos samples calculados por pixel (MSAA)
+              count: 1,
+              // bitmask de samples ativos (!0 => 1111..., ou seja, todos)
+              mask: !0,
+              // também não entendi, tem a haver com anti-aliasing
+              alpha_to_coverage_enabled: false
+            },
+            multiview: None,
+            layout: Some(&render_pipeline_layout),
+            vertex: wgpu::VertexState {
+              buffers: &[],
+              entry_point: "vs_main",
+              module: &shader
+            },
+            fragment: Some(wgpu::FragmentState {
+              entry_point: "fs_main",
+              module: &shader,
+              targets: &[Some(
+                wgpu::ColorTargetState {
+                  blend: Some(BlendState::ALPHA_BLENDING),
+                  format: config.format,
+                  write_mask: wgpu::ColorWrites::ALL,
+                })],
+              }),
+            },
+          );
+
         Self {
           device,
           queue,
           size,
           surface,
-          surface_config: config
+          surface_config: config,
+          render_pipeline
         }        
     }
 
@@ -103,7 +171,7 @@ impl WGPUState {
 
       {
         // Só uma referência, o RenderPass já está salvo no encoder
-        let _render_pass = encoder.begin_render_pass(
+        let render_pass = encoder.begin_render_pass(
           &wgpu::RenderPassDescriptor {
             label: Some("Screen Clearing"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
