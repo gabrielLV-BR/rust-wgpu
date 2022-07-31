@@ -171,7 +171,7 @@ impl WGPUState {
 
       {
         // Só uma referência, o RenderPass já está salvo no encoder
-        let render_pass = encoder.begin_render_pass(
+        let mut render_pass = encoder.begin_render_pass(
           &wgpu::RenderPassDescriptor {
             label: Some("Screen Clearing"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -190,6 +190,10 @@ impl WGPUState {
             depth_stencil_attachment: None
           }
         );
+
+        render_pass.set_pipeline(&self.render_pipeline);
+        render_pass.draw(0..3, 0..1);
+        
       }
 
       self.queue.submit(std::iter::once(encoder.finish()));
