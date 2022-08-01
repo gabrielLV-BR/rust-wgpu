@@ -1,7 +1,7 @@
 // Vertex shader
 
 struct VertexOutput {
-  @builtin(position) clip_position: vec4<f32>,
+  @builtin(position) clip_position: vec4<f32>
 };
 
 @vertex
@@ -17,5 +17,5 @@ fn vs_main(
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-  return vec4<f32>(0.9, 0.5, 0.6, 1.0);
+  return vec4<f32>(in.clip_position[0], in.clip_position[1], 0.5, 1.0);
 }

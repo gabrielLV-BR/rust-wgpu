@@ -1,5 +1,6 @@
-use wgpu::{RequestAdapterOptions, TextureUsages, BlendState, PrimitiveState};
-use winit::event::WindowEvent;
+use wgpu::{RequestAdapterOptions, TextureUsages, BlendState, PrimitiveState, VertexBufferLayout, include_wgsl};
+use winit::event::{WindowEvent, ElementState};
+
 
 pub struct WGPUState {
     surface: wgpu::Surface,
@@ -7,8 +8,10 @@ pub struct WGPUState {
     device: wgpu::Device,
     queue: wgpu::Queue,
     pub size: winit::dpi::PhysicalSize<u32>,
-
-    render_pipeline: wgpu::RenderPipeline
+    colour : [f64;3],
+    jogandofodace: bool,
+    render_pipeline: wgpu::RenderPipeline,
+    challenge_render_pipeline: wgpu::RenderPipeline,
 }
 
 impl WGPUState {
@@ -72,6 +75,8 @@ impl WGPUState {
           source: wgpu::ShaderSource::Wgsl(include_str!("resources/shaders/basic.wgsl").into())
         });
 
+        let challenge_shader = device.create_shader_module(include_wgsl!("resources/shaders/challenge.wgsl"));
+
         let render_pipeline_layout = device.create_pipeline_layout(
           &wgpu::PipelineLayoutDescriptor {
             label: Some("Pipeline Layout"),
@@ -130,13 +135,67 @@ impl WGPUState {
             },
           );
 
+
+        let challenge_render_pipeline = device.create_render_pipeline(
+          &wgpu::RenderPipelineDescriptor {
+            label: Some("Basic render pipeline"),
+            primitive: PrimitiveState {
+              //  Topologia
+              topology: wgpu::PrimitiveTopology::TriangleList,
+              //  Só util quando topologia é Strip com índices
+              strip_index_format: None,
+              // Frente -> vértices em Counter ClockWise
+              front_face: wgpu::FrontFace::Ccw,
+              // Esconder os de trás
+              cull_mode: Some(wgpu::Face::Back),
+              // Preencher o triângulo
+              polygon_mode: wgpu::PolygonMode::Fill,
+              // Não realiza o clipping, possível extra-processando 
+              // de fragmentos que serão descartados
+              unclipped_depth: false,
+              // Se true, a rasterização é mais conservadora
+              conservative: false
+            },
+            // O efeito que o passe vai ter no buffer de depth/stencil
+            depth_stencil: None,
+            multisample: wgpu::MultisampleState {
+              // Quantos samples calculados por pixel (MSAA)
+              count: 1,
+              // bitmask de samples ativos (!0 => 1111..., ou seja, todos)
+              mask: !0,
+              // também não entendi, tem a haver com anti-aliasing
+              alpha_to_coverage_enabled: false
+            },
+            multiview: None,
+            layout: Some(&render_pipeline_layout),
+            vertex: wgpu::VertexState {
+              buffers: &[],
+              entry_point: "vs_main",
+              module: &challenge_shader
+            },
+            fragment: Some(wgpu::FragmentState {
+              entry_point: "fs_main",
+              module: &challenge_shader,
+              targets: &[Some(
+                wgpu::ColorTargetState {
+                  blend: Some(BlendState::ALPHA_BLENDING),
+                  format: config.format,
+                  write_mask: wgpu::ColorWrites::ALL,
+                })],
+              }),
+            },
+          );
+
         Self {
           device,
           queue,
           size,
           surface,
           surface_config: config,
-          render_pipeline
+          render_pipeline,
+          challenge_render_pipeline,
+          jogandofodace: false,
+          colour: [0.0,0.0,0.0]
         }        
     }
 
@@ -149,7 +208,22 @@ impl WGPUState {
       } 
     }
 
-    pub fn input(&mut self, _event: &WindowEvent) -> bool {
+    pub fn input(&mut self, event: &WindowEvent) -> bool {
+      match event {
+        WindowEvent::CursorMoved { position, .. } => {
+          self.colour[0] = position.x / self.surface_config.width as f64;
+          self.colour[1] = position.y / self.surface_config.height as f64;
+          self.colour[2] = self.colour[0] / self.colour[1];
+        },
+        WindowEvent::KeyboardInput { input, .. } => {
+          
+          if input.state == ElementState::Pressed && input.virtual_keycode.unwrap() == winit::event::VirtualKeyCode::Space {
+            self.jogandofodace = !self.jogandofodace;
+          }
+        }
+        _ => {}
+      };
+
       false
     }
 
@@ -179,9 +253,9 @@ impl WGPUState {
               resolve_target: None,
               ops: wgpu::Operations {
                 load: wgpu::LoadOp::Clear(wgpu::Color {
-                  r: 0.2,
-                  g: 0.5,
-                  b: 0.8,
+                  r: self.colour[0],
+                  g: self.colour[1],
+                  b: self.colour[2],
                   a: 1.0
                 }),
                 store: true
@@ -191,7 +265,7 @@ impl WGPUState {
           }
         );
 
-        render_pass.set_pipeline(&self.render_pipeline);
+        render_pass.set_pipeline(if self.jogandofodace { &self.render_pipeline } else { &self.challenge_render_pipeline });
         render_pass.draw(0..3, 0..1);
         
       }
