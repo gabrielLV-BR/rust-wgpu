@@ -35,17 +35,26 @@ impl Vertex {
 
 const VERTICES: &[Vertex] = &[
     Vertex {
-        position: [0.0, 0.5, 0.0],
+        position: [-0.5, -0.5, 0.0],
         color: [1.0, 0.0, 0.0],
     },
     Vertex {
-        position: [-0.5, -0.5, 0.0],
+        position: [-0.5, 0.5, 0.0],
         color: [0.0, 1.0, 0.0],
     },
     Vertex {
-        position: [0.5, -0.5, 0.0],
+        position: [0.5, 0.5, 0.0],
         color: [0.0, 0.0, 1.0],
     },
+    Vertex {
+      position: [0.5, -0.5, 0.0],
+      color: [0.0, 0.0, 1.0],
+  },
+];
+
+const INDICES: &[u16 ; 6] = &[
+  2, 1, 0,
+  0, 3, 2
 ];
 
 pub struct WGPUState {
@@ -56,6 +65,7 @@ pub struct WGPUState {
     pub size: winit::dpi::PhysicalSize<u32>,
     render_pipeline: wgpu::RenderPipeline,
     vertex_buffer: wgpu::Buffer,
+    index_buffer: wgpu::Buffer
 }
 
 impl WGPUState {
@@ -184,6 +194,11 @@ impl WGPUState {
             contents: bytemuck::cast_slice(VERTICES),
             usage: wgpu::BufferUsages::VERTEX,
         });
+        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+          label: Some("IndexBuffer"),
+          contents: bytemuck::cast_slice(INDICES),
+          usage: wgpu::BufferUsages::INDEX
+        });
 
         Self {
             device,
@@ -193,6 +208,7 @@ impl WGPUState {
             surface_config: config,
             render_pipeline,
             vertex_buffer,
+            index_buffer
         }
     }
 
@@ -249,7 +265,10 @@ impl WGPUState {
             render_pass.set_pipeline(&self.render_pipeline);
             // Set vertex to use
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            render_pass.draw(0..VERTICES.len() as u32, 0..1);
+            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.draw_indexed(0..INDICES.len() as u32, 0, 0..1);
+            // render_pass.draw(0..VERTICES.len() as u32, 0..1);
+
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
